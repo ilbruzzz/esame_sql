@@ -22,7 +22,6 @@ def load_data():
     order_details = df[['order_id', 'product_id', 'add_to_cart_order', 'reordered']].drop_duplicates()
 
     #connessione al db
-    print("Connessione al database...")
     conn = sqlite3.connect(db_file)
     cursor = conn.cursor()
     
