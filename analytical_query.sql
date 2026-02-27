@@ -6,9 +6,8 @@
     --crea una classifica
 --nel terzo blocco si fondono i dati
     --prende il riassunto delle vendite dal primo blocco
-    --calcoliamo le vendite per ogni singola ora del giorno e poi stila una classifica per ogni reparto.
-        --es: alle 10 200 vendite alle 11 500 ecc...
-        -- da questi dati riordinati prendiamo solo il (primo)
+    --incastriamo i dati con la classifica delle vendite
+        --filtriamo la classifica prendendo solo il numero 1 (l'orario con più vendite).
     --ordina i risultati dal reparto che ha venduto di più a quello che ha venduto di meno
 
 WITH StatisticheReparti AS (
