@@ -4,7 +4,7 @@ import sys
 import subprocess
 
 #richiamo le funzioni per la creazione del db e caricamento dati
-#(se il db è già caricato commenta le due righe)
+#(se il db è già caricato commenta le due funzioni)
 
 #create_database()
 #load_csv()
