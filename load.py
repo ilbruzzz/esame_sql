@@ -2,10 +2,11 @@ import pandas as pd
 import psycopg2
 import os
 
+csv = "instacart.csv"
 cartella_corrente = os.path.dirname(os.path.abspath(__file__))
-file = os.path.join(cartella_corrente, 'instacart.csv')
+file = os.path.join(cartella_corrente, csv)
 
-def load_data():
+def load_csv():
     
     # leggiamo il csv
     df = pd.read_csv(file)
@@ -20,12 +21,12 @@ def load_data():
     #usiamo drop_duplicates(subset=[...]) sulle chiavi primarie per estrarre 
     #solo le entità uniche (es. un singolo record per ogni prodotto) ed evitare 
     #la duplicazione delle primary key nel database.
-    users = df[['user_id']].drop_duplicates()
-    departments = df[['department_id', 'department']].drop_duplicates(subset=['department_id'])
-    aisles = df[['aisle_id', 'aisle']].drop_duplicates(subset=['aisle_id'])
-    products = df[['product_id', 'product_name', 'aisle_id', 'department_id']].drop_duplicates()
-    orders = df[['order_id', 'user_id', 'eval_set', 'order_number', 'order_dow', 'order_hour_of_day', 'days_since_prior_order']].drop_duplicates()
-    order_details = df[['order_id', 'product_id', 'add_to_cart_order', 'reordered']].drop_duplicates()
+    users = df[["user_id"]].drop_duplicates()
+    departments = df[["department_id", "department"]].drop_duplicates(subset=["department_id"])
+    aisles = df[["aisle_id", "aisle"]].drop_duplicates(subset=["aisle_id"])
+    products = df[["product_id", "product_name", "aisle_id", "department_id"]].drop_duplicates()
+    orders = df[["order_id", "user_id", "eval_set", "order_number", "order_dow", "order_hour_of_day", "days_since_prior_order"]].drop_duplicates()
+    order_details = df[["order_id", "product_id", "add_to_cart_order", "reordered"]].drop_duplicates()
 
     conn = None
     try:
@@ -63,7 +64,7 @@ def load_data():
                             order_details.values.tolist())
         
         conn.commit()
-        print("db caricato")
+        print(f"'{csv}' caricato correttamente")
         
     except Exception as errore:
         if conn:
@@ -77,4 +78,4 @@ def load_data():
 
 #test funzione
 if __name__ == "__main__":
-    load_data()
+    load_csv()
