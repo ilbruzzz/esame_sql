@@ -1,6 +1,6 @@
 --il primo blocco crea un riassunto delle vendite generali per ogni singolo reparto
     --conta le vendite
-    --calcola il percentuale di riordino
+    --calcola la percentuale di riordino
 -- il secondo blocco serve per capire quando le persone comprano di più.
     --raggruppa le vendite per ora
     --crea una classifica
@@ -12,32 +12,32 @@
 
 WITH StatisticheReparti AS (
     SELECT 
-        d.department_id,
-        d.department AS nome_reparto,
-        COUNT(od.product_id) AS totale_prodotti_venduti,
-        ROUND(CAST(SUM(od.reordered) AS FLOAT) / COUNT(od.product_id) * 100, 2) AS percentuale_riordino
-    FROM departments d
-    JOIN products p ON d.department_id = p.department_id
-    JOIN order_details od ON p.product_id = od.product_id
-    GROUP BY d.department_id, d.department
+        departments.department_id,
+        departments.department AS nome_reparto,
+        COUNT(order_details.product_id) AS totale_prodotti_venduti,
+        ROUND(CAST(SUM(order_details.reordered) AS FLOAT) / COUNT(order_details.product_id) * 100, 2) AS percentuale_riordino
+    FROM departments
+    JOIN products ON departments.department_id = products.department_id
+    JOIN order_details ON products.product_id = order_details.product_id
+    GROUP BY departments.department_id, departments.department
 ),
 OreDiPunta AS (
     SELECT 
-        d.department_id,
-        o.order_hour_of_day,
+        departments.department_id,
+        orders.order_hour_of_day,
         COUNT(*) AS ordini_per_ora,
-        ROW_NUMBER() OVER(PARTITION BY d.department_id ORDER BY COUNT(*) DESC) AS num_riga
-    FROM departments d
-    JOIN products p ON d.department_id = p.department_id
-    JOIN order_details od ON p.product_id = od.product_id
-    JOIN orders o ON od.order_id = o.order_id
-    GROUP BY d.department_id, o.order_hour_of_day
+        ROW_NUMBER() OVER(PARTITION BY departments.department_id ORDER BY COUNT(*) DESC) AS num_riga
+    FROM departments
+    JOIN products ON departments.department_id = products.department_id
+    JOIN order_details ON products.product_id = order_details.product_id
+    JOIN orders ON order_details.order_id = orders.order_id
+    GROUP BY departments.department_id, orders.order_hour_of_day
 )
 SELECT 
-    sr.nome_reparto,
-    sr.totale_prodotti_venduti,
-    sr.percentuale_riordino,
-    op.order_hour_of_day AS ora_di_punta_vendite
-FROM StatisticheReparti sr
-JOIN OreDiPunta op ON sr.department_id = op.department_id AND op.num_riga = 1
-ORDER BY sr.totale_prodotti_venduti DESC;
+    StatisticheReparti.nome_reparto,
+    StatisticheReparti.totale_prodotti_venduti,
+    StatisticheReparti.percentuale_riordino,
+    OreDiPunta.order_hour_of_day AS ora_di_punta_vendite
+FROM StatisticheReparti
+JOIN OreDiPunta ON StatisticheReparti.department_id = OreDiPunta.department_id AND OreDiPunta.num_riga = 1
+ORDER BY StatisticheReparti.totale_prodotti_venduti DESC;
