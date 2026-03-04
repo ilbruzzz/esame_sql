@@ -75,8 +75,10 @@ Il database è gestito localmente. Per visualizzare i dati e la struttura delle 
 
 ## Istruzioni Generali
 
-### 1. Avvio dell'ambiente
-Assicurati di avere Docker installato, quindi esegui:
+### 1. Configurazione e Avvio
+Assicurati di avere Docker installato. Prima di procedere, configura il file `.env` nella root del progetto con le credenziali necessarie (`HOST`, `PORT`, `DATABASE_NAME`, `USER`, `PASSWORD`).
+
+Quindi esegui:
 ```bash
 docker-compose up -d
 ```

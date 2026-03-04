@@ -6,6 +6,18 @@ from sqlalchemy import create_engine, text
 import os
 import queries
 
+#.env
+from dotenv import load_dotenv
+load_dotenv()
+
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
+DATABASE = os.getenv("DATABASE")
+USER = os.getenv("USER")
+PASSWORD = os.getenv("PASSWORD")
+
+COLLEGAMENTO_DB_APP_PY = f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}/{DATABASE}"
+
 # Configurazione pagina
 st.set_page_config(
     page_title="Instacart Shop",
@@ -16,7 +28,7 @@ st.set_page_config(
 @st.cache_resource
 def ottieni_motore_database():
     return create_engine(
-        "postgresql+psycopg2://postgres:admin@localhost/instacart",
+        COLLEGAMENTO_DB_APP_PY,
         pool_pre_ping=True,
     )
 

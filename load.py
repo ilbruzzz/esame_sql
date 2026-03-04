@@ -2,6 +2,18 @@ import pandas as pd
 import psycopg2
 import os
 
+#.env
+from dotenv import load_dotenv
+load_dotenv()
+
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
+DATABASE = os.getenv("DATABASE")
+USER = os.getenv("USER")
+PASSWORD = os.getenv("PASSWORD")
+
+COLLEGAMENTO_DB_APP_PY =f"postgresql+psycopg2://{USER}:{PASSWORD}@{HOST}/{DATABASE}"
+
 csv = "instacart.csv"
 cartella_corrente = os.path.dirname(os.path.abspath(__file__))
 file = os.path.join(cartella_corrente, csv)
@@ -32,11 +44,11 @@ def load_csv():
     try:
         #connessione al db su Docker
         conn = psycopg2.connect(
-            host="localhost",
-            port="5432",
-            database="instacart", 
-            user="postgres",
-            password="admin"
+            host=HOST,
+            port=PORT,
+            database=DATABASE, 
+            user=USER,
+            password=PASSWORD
         )
         cursor = conn.cursor()
         
