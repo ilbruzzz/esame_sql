@@ -1,7 +1,10 @@
+# app.py
+
 import streamlit as st
 import pandas as pd
 from sqlalchemy import create_engine, text
 import os
+import queries
 
 # Configurazione pagina
 st.set_page_config(
@@ -31,7 +34,8 @@ def reimposta_sequenze_id():
                 ("departments", "department_id", "departments_department_id_seq"),
                 ("products",    "product_id",    "products_product_id_seq"),
             ]:
-                query_imposta_sequenza = "SELECT setval('{sequenza}', COALESCE((SELECT MAX({colonna}) FROM {tabella}), 1))".format(
+                # Sostituito con riferimento da queries.py
+                query_imposta_sequenza = queries.QUERY_IMPOSTA_SEQUENZA.format(
                     sequenza=nome_sequenza,
                     colonna=nome_colonna,
                     tabella=nome_tabella
@@ -76,11 +80,11 @@ def carica_ed_esegui_query_analitica(percorso_file: str) -> pd.DataFrame:
 
 
 def ottieni_dizionario_corsie() -> dict:
-    dataframe_corsie = leggi_dati("SELECT aisle_id, aisle FROM aisles ORDER BY aisle")
+    dataframe_corsie = leggi_dati(queries.QUERY_DIZIONARIO_CORSIE)
     return dict(zip(dataframe_corsie["aisle_id"], dataframe_corsie["aisle"]))
 
 def ottieni_dizionario_reparti() -> dict:
-    dataframe_reparti = leggi_dati("SELECT department_id, department FROM departments ORDER BY department")
+    dataframe_reparti = leggi_dati(queries.QUERY_DIZIONARIO_REPARTI)
     return dict(zip(dataframe_reparti["department_id"], dataframe_reparti["department"]))
 
 ETICHETTE_GIORNI_SETTIMANA = {0:"Dom", 1:"Lun", 2:"Mar", 3:"Mer", 4:"Gio", 5:"Ven", 6:"Sab"}
@@ -109,18 +113,8 @@ with scheda_dashboard:
     st.divider()
 
     try:
-        # Riga Metriche Principali
         colonna_metrica_1, colonna_metrica_2, colonna_metrica_3, colonna_metrica_4 = st.columns(4)
-        query_metriche_principali = """
-            SELECT
-                (SELECT COUNT(DISTINCT order_id) FROM orders) AS numero_totale_ordini,
-                (SELECT COUNT(*) FROM products) AS numero_totale_prodotti,
-                (SELECT ROUND((100.0 * SUM(reordered) / COUNT(*))::numeric, 1)
-                FROM order_details) AS percentuale_media_riordino,
-                (SELECT ROUND(AVG(days_since_prior_order)::numeric, 1)
-                FROM orders WHERE days_since_prior_order IS NOT NULL) AS media_giorni_tra_ordini
-        """
-        risultato_metriche = leggi_dati(query_metriche_principali).iloc[0]
+        risultato_metriche = leggi_dati(queries.QUERY_METRICHE_PRINCIPALI).iloc[0]
         
         colonna_metrica_1.metric("Ordini totali",         f"{int(risultato_metriche['numero_totale_ordini']):,}")
         colonna_metrica_2.metric("Prodotti a catalogo",   f"{int(risultato_metriche['numero_totale_prodotti']):,}")
@@ -134,23 +128,13 @@ with scheda_dashboard:
         # Ordini per ora del giorno
         with colonna_grafico_1:
             st.markdown("#### Ordini per ora del giorno")
-            dataframe_ordini_per_ora = leggi_dati("""
-                SELECT order_hour_of_day AS ora_del_giorno, COUNT(*) AS totale_ordini
-                FROM orders
-                GROUP BY order_hour_of_day
-                ORDER BY order_hour_of_day
-            """)
+            dataframe_ordini_per_ora = leggi_dati(queries.QUERY_ORDINI_PER_ORA)
             st.bar_chart(dataframe_ordini_per_ora.set_index("ora_del_giorno")["totale_ordini"])
 
         # Ordini per giorno della settimana
         with colonna_grafico_2:
             st.markdown("#### Ordini per giorno della settimana")
-            dataframe_ordini_per_giorno = leggi_dati("""
-                SELECT order_dow AS giorno_della_settimana_numerico, COUNT(*) AS totale_ordini
-                FROM orders
-                GROUP BY order_dow
-                ORDER BY order_dow
-            """)
+            dataframe_ordini_per_giorno = leggi_dati(queries.QUERY_ORDINI_PER_GIORNO)
             dataframe_ordini_per_giorno["etichetta_giorno"] = dataframe_ordini_per_giorno["giorno_della_settimana_numerico"].map(ETICHETTE_GIORNI_SETTIMANA)
             st.bar_chart(dataframe_ordini_per_giorno.set_index("etichetta_giorno")["totale_ordini"])
 
@@ -161,30 +145,13 @@ with scheda_dashboard:
         # Top 10 reparti per prodotti ordinati
         with colonna_grafico_3:
             st.markdown("#### Top 10 reparti per prodotti ordinati")
-            dataframe_prodotti_per_reparto = leggi_dati("""
-                SELECT departments.department AS nome_reparto, COUNT(order_details.product_id) AS quantita_ordinata
-                FROM order_details
-                JOIN products ON order_details.product_id = products.product_id
-                JOIN departments ON products.department_id = departments.department_id
-                GROUP BY departments.department
-                ORDER BY quantita_ordinata DESC
-                LIMIT 10
-            """)
+            dataframe_prodotti_per_reparto = leggi_dati(queries.QUERY_TOP_REPARTI)
             st.bar_chart(dataframe_prodotti_per_reparto.set_index("nome_reparto")["quantita_ordinata"])
 
         # Tasso di riordino per reparto
         with colonna_grafico_4:
             st.markdown("#### Tasso di riordino (%) per reparto")
-            dataframe_riordini_per_reparto = leggi_dati("""
-                SELECT departments.department AS nome_reparto,
-                       ROUND(100.0 * SUM(order_details.reordered) / COUNT(*), 1) AS percentuale_di_riordino
-                FROM order_details
-                JOIN products ON order_details.product_id = products.product_id
-                JOIN departments ON products.department_id = departments.department_id
-                GROUP BY departments.department
-                ORDER BY percentuale_di_riordino DESC
-                LIMIT 10
-            """)
+            dataframe_riordini_per_reparto = leggi_dati(queries.QUERY_TASSO_RIORDINO_REPARTI)
             st.bar_chart(dataframe_riordini_per_reparto.set_index("nome_reparto")["percentuale_di_riordino"])
 
     except Exception as errore_dashboard:
@@ -209,28 +176,7 @@ with scheda_ricerca:
     if st.button("Cerca", type="primary", use_container_width=True):
         clausola_reparto_sql = "" if reparto_selezionato_ricerca == "Tutti i reparti" else "AND departments.department = :parametro_nome_reparto"
 
-        query_ricerca_prodotti = """
-            SELECT DISTINCT
-                products.product_id AS "ID Prodotto",
-                products.product_name AS "Nome Prodotto",
-                aisles.aisle AS "Corsia",
-                departments.department AS "Reparto",
-                COALESCE(SUM(order_details.reordered) OVER (PARTITION BY products.product_id), 0) AS "Totale Riordini"
-            FROM products
-            JOIN aisles 
-                ON products.aisle_id = aisles.aisle_id
-            JOIN departments 
-                ON products.department_id = departments.department_id
-            LEFT JOIN order_details 
-                ON products.product_id = order_details.product_id
-            LEFT JOIN orders 
-                ON order_details.order_id = orders.order_id
-                AND orders.order_hour_of_day BETWEEN :parametro_ora_inizio AND :parametro_ora_fine
-            WHERE products.product_name ILIKE :parametro_testo_ricerca
-            {clausola_reparto}
-            ORDER BY products.product_name
-            LIMIT 500
-        """.format(clausola_reparto=clausola_reparto_sql)
+        query_ricerca_prodotti = queries.QUERY_RICERCA_PRODOTTI.format(clausola_reparto=clausola_reparto_sql)
 
         parametri_ricerca_sql = {
             "parametro_testo_ricerca": "%" + testo_ricerca_prodotto + "%", 
@@ -265,6 +211,7 @@ with scheda_ricerca:
         except Exception as errore_ricerca:
             st.error(errore_ricerca)
 
+
 # Catalogo (Corsie e Reparti)
 with scheda_catalogo:
     st.subheader("Corsie e reparti")
@@ -286,21 +233,21 @@ with scheda_catalogo:
             else:
                 try:
                     id_nuova_corsia = inserisci_e_ritorna_id(
-                        "INSERT INTO aisles (aisle) VALUES (:parametro_nome_corsia) RETURNING aisle_id",
+                        queries.QUERY_INSERISCI_CORSIA,
                         {"parametro_nome_corsia": nome_nuova_corsia_input.strip()}
                     )
                     st.success(f"Corsia '{nome_nuova_corsia_input.strip()}' aggiunta (ID {id_nuova_corsia})")
                 except Exception as errore_inserimento_corsia:
                     messaggio_errore_corsia = str(errore_inserimento_corsia).lower()
                     if "unique" in messaggio_errore_corsia or "duplicate" in messaggio_errore_corsia:
-                        dataframe_corsia_esistente = leggi_dati("SELECT aisle_id FROM aisles WHERE aisle = :parametro_nome_corsia", {"parametro_nome_corsia": nome_nuova_corsia_input.strip()})
+                        dataframe_corsia_esistente = leggi_dati(queries.QUERY_VERIFICA_CORSIA, {"parametro_nome_corsia": nome_nuova_corsia_input.strip()})
                         if not dataframe_corsia_esistente.empty:
                             st.warning(f"La corsia '{nome_nuova_corsia_input.strip()}' esiste già (ID {dataframe_corsia_esistente.iloc[0,0]}).")
                         else:
                             reimposta_sequenze_id()
                             try:
                                 id_nuova_corsia_dopo_reset = inserisci_e_ritorna_id(
-                                    "INSERT INTO aisles (aisle) VALUES (:parametro_nome_corsia) RETURNING aisle_id",
+                                    queries.QUERY_INSERISCI_CORSIA,
                                     {"parametro_nome_corsia": nome_nuova_corsia_input.strip()}
                                 )
                                 st.success(f"Corsia '{nome_nuova_corsia_input.strip()}' aggiunta (ID {id_nuova_corsia_dopo_reset})")
@@ -311,7 +258,7 @@ with scheda_catalogo:
 
         st.markdown("#### Corsie esistenti")
         try:
-            dataframe_elenco_corsie = leggi_dati("SELECT aisle_id AS \"ID Corsia\", aisle AS \"Nome Corsia\" FROM aisles ORDER BY aisle")
+            dataframe_elenco_corsie = leggi_dati(queries.QUERY_ELENCO_CORSIE)
             st.dataframe(dataframe_elenco_corsie, width="stretch", hide_index=True, height=320)
         except Exception as errore_elenco_corsie:
             st.error(errore_elenco_corsie)
@@ -334,7 +281,7 @@ with scheda_catalogo:
                 else:
                     try:
                         scrivi_dati(
-                            "UPDATE aisles SET aisle = :parametro_nuovo_nome WHERE aisle_id = :parametro_id_corsia",
+                            queries.QUERY_RINOMINA_CORSIA,
                             {"parametro_nuovo_nome": nuovo_nome_corsia_input.strip(), "parametro_id_corsia": id_corsia_da_rinominare_selezionata},
                         )
                         st.success(f"Corsia rinominata in '{nuovo_nome_corsia_input.strip()}'!")
@@ -359,12 +306,12 @@ with scheda_catalogo:
                 if not checkbox_conferma_eliminazione_corsia:
                     st.error("Spunta la casella di conferma prima di eliminare!")
                 else:
-                    numero_prodotti_in_corsia = leggi_dati("SELECT COUNT(*) AS totale_prodotti_collegati FROM products WHERE aisle_id = :parametro_id_corsia", {"parametro_id_corsia": id_corsia_da_eliminare_selezionata}).iloc[0]["totale_prodotti_collegati"]
+                    numero_prodotti_in_corsia = leggi_dati(queries.QUERY_CONTA_PRODOTTI_CORSIA, {"parametro_id_corsia": id_corsia_da_eliminare_selezionata}).iloc[0]["totale_prodotti_collegati"]
                     if numero_prodotti_in_corsia > 0:
                         st.warning(f"La corsia ha {int(numero_prodotti_in_corsia)} prodotti collegati. Spostali prima di eliminarla.")
                     else:
                         try:
-                            scrivi_dati("DELETE FROM aisles WHERE aisle_id = :parametro_id_corsia", {"parametro_id_corsia": id_corsia_da_eliminare_selezionata})
+                            scrivi_dati(queries.QUERY_ELIMINA_CORSIA, {"parametro_id_corsia": id_corsia_da_eliminare_selezionata})
                             st.success("Corsia eliminata!")
                         except Exception as errore_cancellazione_corsia:
                             st.error(f"Errore: {errore_cancellazione_corsia}")
@@ -384,21 +331,21 @@ with scheda_catalogo:
             else:
                 try:
                     id_nuovo_reparto = inserisci_e_ritorna_id(
-                        "INSERT INTO departments (department) VALUES (:parametro_nome_reparto) RETURNING department_id",
+                        queries.QUERY_INSERISCI_REPARTO,
                         {"parametro_nome_reparto": nome_nuovo_reparto_input.strip()}
                     )
                     st.success(f"Reparto '{nome_nuovo_reparto_input.strip()}' aggiunto (ID {id_nuovo_reparto})")
                 except Exception as errore_inserimento_reparto:
                     messaggio_errore_reparto = str(errore_inserimento_reparto).lower()
                     if "unique" in messaggio_errore_reparto or "duplicate" in messaggio_errore_reparto:
-                        dataframe_reparto_esistente = leggi_dati("SELECT department_id FROM departments WHERE department = :parametro_nome_reparto", {"parametro_nome_reparto": nome_nuovo_reparto_input.strip()})
+                        dataframe_reparto_esistente = leggi_dati(queries.QUERY_VERIFICA_REPARTO, {"parametro_nome_reparto": nome_nuovo_reparto_input.strip()})
                         if not dataframe_reparto_esistente.empty:
                             st.warning(f"Il reparto '{nome_nuovo_reparto_input.strip()}' esiste già (ID {dataframe_reparto_esistente.iloc[0,0]}).")
                         else:
                             reimposta_sequenze_id()
                             try:
                                 id_nuovo_reparto_dopo_reset = inserisci_e_ritorna_id(
-                                    "INSERT INTO departments (department) VALUES (:parametro_nome_reparto) RETURNING department_id",
+                                    queries.QUERY_INSERISCI_REPARTO,
                                     {"parametro_nome_reparto": nome_nuovo_reparto_input.strip()}
                                 )
                                 st.success(f"Reparto '{nome_nuovo_reparto_input.strip()}' aggiunto (ID {id_nuovo_reparto_dopo_reset})")
@@ -409,7 +356,7 @@ with scheda_catalogo:
 
         st.markdown("#### Reparti esistenti")
         try:
-            dataframe_elenco_reparti = leggi_dati("SELECT department_id AS \"ID Reparto\", department AS \"Nome Reparto\" FROM departments ORDER BY department")
+            dataframe_elenco_reparti = leggi_dati(queries.QUERY_ELENCO_REPARTI)
             st.dataframe(dataframe_elenco_reparti, width="stretch", hide_index=True, height=320)
         except Exception as errore_elenco_reparti:
             st.error(errore_elenco_reparti)
@@ -432,7 +379,7 @@ with scheda_catalogo:
                 else:
                     try:
                         scrivi_dati(
-                            "UPDATE departments SET department = :parametro_nuovo_nome WHERE department_id = :parametro_id_reparto",
+                            queries.QUERY_RINOMINA_REPARTO,
                             {"parametro_nuovo_nome": nuovo_nome_reparto_input.strip(), "parametro_id_reparto": id_reparto_da_rinominare_selezionato},
                         )
                         st.success(f"Reparto rinominato in '{nuovo_nome_reparto_input.strip()}'!")
@@ -457,12 +404,12 @@ with scheda_catalogo:
                 if not checkbox_conferma_eliminazione_reparto:
                     st.error("Spunta la casella di conferma prima di eliminare!")
                 else:
-                    numero_prodotti_nel_reparto = leggi_dati("SELECT COUNT(*) AS totale_prodotti_collegati FROM products WHERE department_id = :parametro_id_reparto", {"parametro_id_reparto": id_reparto_da_eliminare_selezionato}).iloc[0]["totale_prodotti_collegati"]
+                    numero_prodotti_nel_reparto = leggi_dati(queries.QUERY_CONTA_PRODOTTI_REPARTO, {"parametro_id_reparto": id_reparto_da_eliminare_selezionato}).iloc[0]["totale_prodotti_collegati"]
                     if numero_prodotti_nel_reparto > 0:
                         st.warning(f"Il reparto ha {int(numero_prodotti_nel_reparto)} prodotti collegati. Spostali prima di eliminarlo.")
                     else:
                         try:
-                            scrivi_dati("DELETE FROM departments WHERE department_id = :parametro_id_reparto", {"parametro_id_reparto": id_reparto_da_eliminare_selezionato})
+                            scrivi_dati(queries.QUERY_ELIMINA_REPARTO, {"parametro_id_reparto": id_reparto_da_eliminare_selezionato})
                             st.success("Reparto eliminato!")
                         except Exception as errore_cancellazione_reparto:
                             st.error(f"Errore: {errore_cancellazione_reparto}")
@@ -504,7 +451,7 @@ with scheda_aggiungi:
         else:
             try:
                 scrivi_dati(
-                    "INSERT INTO products (product_name, aisle_id, department_id) VALUES (:parametro_nome_prodotto, :parametro_id_corsia, :parametro_id_reparto)",
+                    queries.QUERY_INSERISCI_PRODOTTO,
                     {"parametro_nome_prodotto": nome_nuovo_prodotto_input.strip(), "parametro_id_corsia": id_corsia_scelta_per_inserimento, "parametro_id_reparto": id_reparto_scelto_per_inserimento},
                 )
                 st.success(f"Prodotto **'{nome_nuovo_prodotto_input.strip()}'** aggiunto con successo!")
@@ -535,9 +482,7 @@ with scheda_modifica:
     with colonna_filtro_modifica_corsia:
         if id_reparto_filtrato_selezionato:
             dataframe_corsie_filtrate_per_reparto = leggi_dati(
-                "SELECT DISTINCT aisles.aisle_id, aisles.aisle FROM aisles "
-                "JOIN products ON products.aisle_id = aisles.aisle_id "
-                "WHERE products.department_id = :parametro_id_reparto ORDER BY aisles.aisle",
+                queries.QUERY_CORSIE_PER_REPARTO,
                 {"parametro_id_reparto": int(id_reparto_filtrato_selezionato)},
             )
             opzioni_filtro_corsie_modifica = {"": "— Tutte le corsie —"} | dict(zip(dataframe_corsie_filtrate_per_reparto["aisle_id"].astype(str), dataframe_corsie_filtrate_per_reparto["aisle"]))
@@ -565,10 +510,7 @@ with scheda_modifica:
     stringa_where_completa_sql = ("WHERE " + " AND ".join(lista_clausole_where_sql)) if lista_clausole_where_sql else ""
 
     try:
-        query_ricerca_prodotti_da_modificare = (
-            "SELECT products.product_id, products.product_name, products.aisle_id, products.department_id "
-            "FROM products " + stringa_where_completa_sql + " ORDER BY products.product_name LIMIT 500"
-        )
+        query_ricerca_prodotti_da_modificare = queries.QUERY_RICERCA_MODIFICA_PRODOTTO.format(stringa_where=stringa_where_completa_sql)
         dataframe_prodotti_filtrati_per_modifica = leggi_dati(
             query_ricerca_prodotti_da_modificare,
             dizionario_parametri_query_prodotti,
@@ -619,7 +561,7 @@ with scheda_modifica:
             else:
                 try:
                     scrivi_dati(
-                        "UPDATE products SET product_name=:parametro_nuovo_nome, aisle_id=:parametro_nuova_corsia, department_id=:parametro_nuovo_reparto WHERE product_id=:parametro_id_prodotto",
+                        queries.QUERY_AGGIORNA_PRODOTTO,
                         {"parametro_nuovo_nome": nome_prodotto_aggiornato_input.strip(), "parametro_nuova_corsia": id_corsia_aggiornata_selezionata, "parametro_nuovo_reparto": id_reparto_aggiornato_selezionato, "parametro_id_prodotto": id_prodotto_selezionato_per_modifica},
                     )
                     st.success(f"'{nome_prodotto_aggiornato_input.strip()}' aggiornato!")
@@ -634,8 +576,8 @@ with scheda_modifica:
         )
         if st.button("Elimina prodotto", type="secondary", disabled=not checkbox_conferma_eliminazione_prodotto):
             try:
-                scrivi_dati("DELETE FROM order_details WHERE product_id = :parametro_id_prodotto", {"parametro_id_prodotto": id_prodotto_selezionato_per_modifica})
-                scrivi_dati("DELETE FROM products WHERE product_id = :parametro_id_prodotto", {"parametro_id_prodotto": id_prodotto_selezionato_per_modifica})
+                scrivi_dati(queries.QUERY_ELIMINA_ORDINI_PRODOTTO, {"parametro_id_prodotto": id_prodotto_selezionato_per_modifica})
+                scrivi_dati(queries.QUERY_ELIMINA_PRODOTTO, {"parametro_id_prodotto": id_prodotto_selezionato_per_modifica})
                 st.success("Prodotto eliminato (rimosso anche dagli ordini).")
             except Exception as errore_cancellazione_prodotto:
                 st.error(f"Errore: {errore_cancellazione_prodotto}")

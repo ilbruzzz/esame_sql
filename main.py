@@ -6,8 +6,8 @@ import subprocess
 #richiamo le funzioni per la creazione del db e caricamento dati
 #(se il db è già caricato commenta le due funzioni)
 
-#create_database()
-#load_csv()
+create_database()
+load_csv()
 
 #esegui streamlit nel app.py
 subprocess.run([sys.executable, "-m", "streamlit", "run", "app.py"])
