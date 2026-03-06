@@ -1,14 +1,23 @@
 import psycopg2
+import os
+from dotenv import load_dotenv
+
+load_dotenv()
+HOST = os.getenv("HOST")
+PORT = os.getenv("PORT")
+DATABASE = os.getenv("DATABASE")
+USER = os.getenv("USER")
+PASSWORD = os.getenv("PASSWORD")
 
 def create_database():
     conn = None
     try:
         conn = psycopg2.connect(
-            host="localhost",
-            port="5432",
-            database="instacart", 
-            user="postgres",
-            password="admin"
+            host=HOST,
+            port=PORT,
+            database=DATABASE, 
+            user=USER,
+            password=PASSWORD
         )
         cursor = conn.cursor()
 
@@ -64,7 +73,7 @@ def create_database():
         print("db creato con successo!")
 
     except Exception as errore:
-        print(f"Errore durante la creazione del database: {errore}")
+        print(f"errore durante la creazione del database: {errore}")
     
     finally:
         if conn:
