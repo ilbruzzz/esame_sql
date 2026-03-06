@@ -1,5 +1,5 @@
 from create_table import create_database
-from load import load_csv
+from load import load_data
 import sys
 import subprocess
 
@@ -7,7 +7,7 @@ import subprocess
 #(se il db è già caricato commenta le due funzioni)
 
 create_database()
-load_csv()
+load_data()
 
 #esegui streamlit nel app.py
 subprocess.run([sys.executable, "-m", "streamlit", "run", "app.py"])

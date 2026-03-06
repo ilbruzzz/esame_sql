@@ -18,7 +18,7 @@ csv = "instacart.csv"
 cartella_corrente = os.path.dirname(os.path.abspath(__file__))
 file = os.path.join(cartella_corrente, csv)
 
-def load_csv():
+def load_data():
     
     # leggiamo il csv
     df = pd.read_csv(file)
@@ -90,4 +90,4 @@ def load_csv():
 
 #test funzione
 if __name__ == "__main__":
-    load_csv()
+    load_data()

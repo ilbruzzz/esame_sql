@@ -14,21 +14,21 @@ def create_database():
 
         sql_script = """
         CREATE TABLE IF NOT EXISTS users (
-            user_id SERIAL PRIMARY KEY
+            user_id INTEGER PRIMARY KEY
         );
 
         CREATE TABLE IF NOT EXISTS departments (
-            department_id SERIAL PRIMARY KEY,
+            department_id INTEGER PRIMARY KEY,
             department VARCHAR(255) NOT NULL UNIQUE
         );
 
         CREATE TABLE IF NOT EXISTS aisles (
-            aisle_id SERIAL PRIMARY KEY,
+            aisle_id INTEGER PRIMARY KEY,
             aisle VARCHAR(255) NOT NULL UNIQUE
         );
 
         CREATE TABLE IF NOT EXISTS products (
-            product_id SERIAL PRIMARY KEY,
+            product_id INTEGER PRIMARY KEY,
             product_name VARCHAR(255) NOT NULL,
             aisle_id INTEGER NOT NULL,
             department_id INTEGER NOT NULL,
@@ -37,7 +37,7 @@ def create_database():
         );
 
         CREATE TABLE IF NOT EXISTS orders (
-            order_id SERIAL PRIMARY KEY,
+            order_id INTEGER PRIMARY KEY,
             user_id INTEGER NOT NULL,
             eval_set VARCHAR(50) DEFAULT 'train',
             order_number INTEGER CHECK(order_number > 0),
@@ -61,10 +61,10 @@ def create_database():
         cursor.execute(sql_script)
         
         conn.commit()
-        print("db creato")
+        print("db creato con successo!")
 
     except Exception as errore:
-        print(errore)
+        print(f"Errore durante la creazione del database: {errore}")
     
     finally:
         if conn:
